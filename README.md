@@ -28,11 +28,19 @@ vast.ai GPU 서버에서 Qwen 이미지 생성 모델을 활용한 Flask API 서
 git clone <repository-url>
 cd AVA_GPU
 
-# vast.ai 환경 설정 (Docker 설치 및 설정)
-./setup_vastai.sh
+# Docker 데몬 시작 (vast.ai는 systemd 없음)
+./start_docker.sh
 
-# 서버 재시작 (권장)
-sudo reboot
+# 또는 수동 시작
+sudo dockerd &
+
+# Docker 데몬 준비 확인
+docker ps
+```
+
+2. **프로젝트 실행**
+```bash
+./start.sh
 ```
 
 ### Docker Compose 사용 (권장)
@@ -165,18 +173,27 @@ curl -X GET http://localhost:5000/images/generated_abc12345.png --output image.p
 
 **증상**: "Cannot connect to the Docker daemon" 오류
 
-**해결방법**:
+**해결방법 (vast.ai 환경)**:
 ```bash
-# 1. Docker 서비스 시작
+# 1. Docker 데몬 시작 (vast.ai는 systemd 미지원)
+./start_docker.sh
+
+# 2. 또는 수동으로 Docker 데몬 시작
+sudo dockerd &
+
+# 3. Docker 데몬 상태 확인
+docker ps
+
+# 4. 사용자 권한 설정 (필요시)
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+**해결방법 (일반 Linux)**:
+```bash
+# systemd 환경에서
 sudo systemctl start docker
 sudo systemctl enable docker
-
-# 2. 사용자를 docker 그룹에 추가
-sudo usermod -aG docker $USER
-newgrp docker  # 또는 재로그인
-
-# 3. vast.ai 초기 설정 스크립트 실행
-./setup_vastai.sh
 ```
 
 ### Docker Compose 권한 오류

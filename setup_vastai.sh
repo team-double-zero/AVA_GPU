@@ -41,22 +41,40 @@ fi
 # Docker 서비스 시작
 echo "🔄 Docker 서비스 상태 확인 및 시작..."
 
-if systemctl is-active --quiet docker; then
+# Docker 데몬이 이미 실행 중인지 확인
+if docker ps &> /dev/null; then
     echo "✅ Docker 서비스가 이미 실행 중입니다"
 else
     echo "🚀 Docker 서비스를 시작합니다..."
-    sudo systemctl start docker
-    sudo systemctl enable docker
     
-    # 서비스 시작 대기
-    sleep 5
-    
-    if systemctl is-active --quiet docker; then
-        echo "✅ Docker 서비스가 성공적으로 시작되었습니다"
+    # systemd 사용 가능한지 확인
+    if command -v systemctl &> /dev/null && systemctl is-system-running &> /dev/null; then
+        echo "systemd 환경에서 Docker 시작..."
+        sudo systemctl start docker
+        sudo systemctl enable docker
     else
-        echo "❌ Docker 서비스 시작에 실패했습니다"
-        sudo systemctl status docker
-        exit 1
+        echo "non-systemd 환경 (vast.ai 컨테이너)에서 Docker 시작..."
+        
+        # Docker 데몬을 백그라운드에서 시작
+        sudo dockerd &> /tmp/dockerd.log &
+        
+        # Docker 데몬이 시작될 때까지 대기
+        echo "Docker 데몬 시작 대기 중..."
+        for i in {1..30}; do
+            if docker ps &> /dev/null; then
+                echo "✅ Docker 데몬이 성공적으로 시작되었습니다"
+                break
+            fi
+            echo "대기 중... ($i/30)"
+            sleep 2
+        done
+        
+        if ! docker ps &> /dev/null; then
+            echo "❌ Docker 데몬 시작에 실패했습니다"
+            echo "로그 확인:"
+            tail -20 /tmp/dockerd.log
+            exit 1
+        fi
     fi
 fi
 
