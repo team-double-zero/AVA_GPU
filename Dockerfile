@@ -4,8 +4,12 @@ FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel
 # 작업 디렉토리 설정
 WORKDIR /app
 
+# 비대화형 설치 설정
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Seoul
+
 # 시스템 패키지 설치
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libgl1-mesa-glx \
     libglib2.0-0 \

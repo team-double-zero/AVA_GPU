@@ -27,8 +27,26 @@ vast.ai GPU 서버에서 Qwen 이미지 생성 모델을 활용한 Flask API 서
 git clone <repository-url>
 cd qwen_project
 
+# 포트 설정 (vast.ai에서 할당받은 포트로 변경)
+./scripts/set_port.sh
+
 # Docker 실행 (vast.ai에는 Docker가 이미 설치됨)
 ./scripts/run_docker.sh
+```
+
+### 포트 변경 방법
+
+vast.ai에서 할당받은 포트에 맞춰 서비스 포트를 변경할 수 있습니다:
+
+```bash
+# 대화형 포트 설정
+./scripts/set_port.sh
+
+# 또는 직접 config.env 파일 수정
+echo "PORT=8080" > config.env
+
+# 환경변수로 직접 실행
+PORT=8080 docker compose up -d
 ```
 
 ### Docker Compose 사용 (권장)

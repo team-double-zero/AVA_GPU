@@ -7,6 +7,15 @@ echo "🐳 Qwen Image Generator Docker 실행"
 # 현재 디렉토리를 프로젝트 루트로 이동
 cd "$(dirname "$0")/.."
 
+# 현재 설정된 포트 확인
+current_port=$(grep "^PORT=" config.env 2>/dev/null | cut -d'=' -f2)
+if [ -z "$current_port" ]; then
+    current_port="5000"
+fi
+
+echo "📌 현재 설정된 포트: $current_port"
+echo "💡 포트 변경: ./scripts/set_port.sh"
+
 # Docker 상태 확인
 if ! docker ps &> /dev/null; then
     echo "❌ Docker가 실행되지 않고 있습니다."
@@ -58,7 +67,7 @@ case $choice in
         echo ""
         echo "🔍 헬스체크..."
         sleep 2
-        curl -s http://localhost:5000/health | python3 -m json.tool 2>/dev/null || echo "서비스가 아직 준비되지 않았습니다."
+        curl -s http://localhost:$current_port/health | python3 -m json.tool 2>/dev/null || echo "서비스가 아직 준비되지 않았습니다."
         exit 0
         ;;
     *)
@@ -74,21 +83,21 @@ if [ "$choice" = "1" ] || [ "$choice" = "2" ]; then
     
     # 최대 60초 대기
     for i in {1..12}; do
-        if curl -f http://localhost:5000/health &> /dev/null; then
+        if curl -f http://localhost:$current_port/health &> /dev/null; then
             echo "✅ 서비스가 성공적으로 시작되었습니다!"
             echo ""
             echo "🌐 서비스 주소:"
-            echo "  - API: http://localhost:5000"
-            echo "  - 헬스체크: http://localhost:5000/health"
-            echo "  - 모델 정보: http://localhost:5000/model-info"
+            echo "  - API: http://localhost:$current_port"
+            echo "  - 헬스체크: http://localhost:$current_port/health"
+            echo "  - 모델 정보: http://localhost:$current_port/model-info"
             echo ""
             echo "📝 사용법:"
-            echo "  curl -X POST http://localhost:5000/generate \\"
+            echo "  curl -X POST http://localhost:$current_port/generate \\"
             echo "    -H 'Content-Type: application/json' \\"
             echo "    -d '{\"prompt\": \"a beautiful sunset\"}'"
             echo ""
             echo "📊 현재 상태:"
-            curl -s http://localhost:5000/health | python3 -m json.tool 2>/dev/null
+            curl -s http://localhost:$current_port/health | python3 -m json.tool 2>/dev/null
             exit 0
         fi
         
