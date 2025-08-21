@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  qwen-image-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qwen-image-generator
+    ports:
+      - "5000:5000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TORCH_HOME=/app/torch_cache
+      - HF_HOME=/app/huggingface_cache
+      - PORT=5000
+    volumes:
+      # 모델 캐시 볼륨 (재시작 시 모델 재다운로드 방지)
+      - model_cache:/app/huggingface_cache
+      - torch_cache:/app/torch_cache
+      # 생성된 이미지 저장 볼륨
+      - generated_images:/app/generated_images
+      # 로그 볼륨
+      - logs:/app/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+volumes:
+  model_cache:
+    driver: local
+  torch_cache:
+    driver: local
+  generated_images:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  default:
+    name: qwen-network
