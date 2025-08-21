@@ -20,6 +20,21 @@ vast.ai GPU 서버에서 Qwen 이미지 생성 모델을 활용한 Flask API 서
 
 ## 🛠️ 설치 및 실행
 
+### vast.ai 환경에서 최초 설정
+
+1. **vast.ai 서버 초기 설정**
+```bash
+# 프로젝트 클론
+git clone <repository-url>
+cd AVA_GPU
+
+# vast.ai 환경 설정 (Docker 설치 및 설정)
+./setup_vastai.sh
+
+# 서버 재시작 (권장)
+sudo reboot
+```
+
 ### Docker Compose 사용 (권장)
 
 1. **프로젝트 클론**
@@ -145,6 +160,24 @@ curl -X GET http://localhost:5000/images/generated_abc12345.png --output image.p
 1. GPU 메모리 확인: `nvidia-smi`
 2. 컨테이너 로그 확인: `docker-compose logs -f`
 3. 충분한 디스크 공간 확인 (모델 파일 다운로드용)
+
+### Docker 데몬 연결 오류
+
+**증상**: "Cannot connect to the Docker daemon" 오류
+
+**해결방법**:
+```bash
+# 1. Docker 서비스 시작
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# 2. 사용자를 docker 그룹에 추가
+sudo usermod -aG docker $USER
+newgrp docker  # 또는 재로그인
+
+# 3. vast.ai 초기 설정 스크립트 실행
+./setup_vastai.sh
+```
 
 ### Docker Compose 권한 오류
 

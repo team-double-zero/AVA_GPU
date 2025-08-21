@@ -14,9 +14,21 @@ fi
 
 # Docker 및 Docker Compose 확인
 if ! command -v docker &> /dev/null; then
-    echo "❌ Docker가 설치되지 않았습니다. Docker를 설치해주세요."
+    echo "❌ Docker가 설치되지 않았습니다. setup_vastai.sh를 실행해주세요."
     exit 1
 fi
+
+# Docker 데몬 상태 확인
+echo "🔍 Docker 데몬 상태 확인 중..."
+if ! docker ps &> /dev/null; then
+    echo "❌ Docker 데몬이 실행되지 않고 있습니다."
+    echo "해결 방법:"
+    echo "1. 서비스 시작: sudo systemctl start docker"
+    echo "2. 권한 문제: newgrp docker 또는 sudo usermod -aG docker \$USER"
+    echo "3. vast.ai 초기 설정: ./setup_vastai.sh"
+    exit 1
+fi
+echo "✅ Docker 데몬이 정상적으로 실행 중입니다"
 
 # Docker Compose 명령어 확인 (최신 버전 우선)
 if docker compose version &> /dev/null; then
