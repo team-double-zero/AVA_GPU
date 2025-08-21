@@ -30,6 +30,10 @@ cd AVA_GPU
 
 2. **Docker 컨테이너 빌드 및 실행**
 ```bash
+# 최신 Docker Desktop (권장)
+docker compose up --build -d
+
+# 또는 기존 docker-compose 명령어
 docker-compose up --build -d
 ```
 
@@ -141,6 +145,21 @@ curl -X GET http://localhost:5000/images/generated_abc12345.png --output image.p
 1. GPU 메모리 확인: `nvidia-smi`
 2. 컨테이너 로그 확인: `docker-compose logs -f`
 3. 충분한 디스크 공간 확인 (모델 파일 다운로드용)
+
+### Docker Compose 권한 오류
+
+**증상**: "Permission denied" 오류가 발생하는 경우
+
+**해결방법**:
+1. 최신 Docker Desktop 사용 시: `docker compose` (공백 포함) 명령어 사용
+2. 기존 버전 사용 시: `docker-compose` 권한 확인
+```bash
+# 최신 명령어 테스트
+docker compose version
+
+# 권한 확인
+ls -la /usr/local/bin/docker-compose
+```
 
 ### CUDA 오류
 

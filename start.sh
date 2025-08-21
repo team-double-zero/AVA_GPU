@@ -18,27 +18,32 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null; then
+# Docker Compose 명령어 확인 (최신 버전 우선)
+if docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+    echo "✅ Docker Compose (v2) 확인됨"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+    echo "✅ Docker Compose (v1) 확인됨"
+else
     echo "❌ Docker Compose가 설치되지 않았습니다. Docker Compose를 설치해주세요."
     exit 1
 fi
-
-echo "✅ Docker 및 Docker Compose 확인됨"
 
 # 기존 컨테이너 정리 (선택사항)
 read -p "기존 컨테이너를 정리하시겠습니까? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "🧹 기존 컨테이너 정리 중..."
-    docker-compose down -v
+    $DOCKER_COMPOSE_CMD down -v
 fi
 
 # 컨테이너 빌드 및 실행
 echo "🏗️  컨테이너 빌드 중..."
-docker-compose build
+$DOCKER_COMPOSE_CMD build
 
 echo "🚀 서비스 시작 중..."
-docker-compose up -d
+$DOCKER_COMPOSE_CMD up -d
 
 # 서비스 상태 확인
 echo "⏳ 서비스 시작 대기 중..."
@@ -69,6 +74,6 @@ while [ $attempt -le $max_attempts ]; do
 done
 
 echo "❌ 서비스 시작에 실패했습니다. 로그를 확인해주세요:"
-echo "docker-compose logs -f"
+echo "$DOCKER_COMPOSE_CMD logs -f"
 
 exit 1
