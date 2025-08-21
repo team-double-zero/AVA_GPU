@@ -12,7 +12,7 @@ import json
 import base64
 import argparse
 import time
-from pathlib import Path
+import os
 
 def test_health(base_url: str) -> bool:
     """헬스체크 테스트"""
@@ -78,12 +78,12 @@ def generate_image(base_url: str, prompt: str, **kwargs) -> bool:
                 
                 # 이미지 저장
                 if data.get('image_base64'):
-                    output_dir = Path("test_outputs")
-                    output_dir.mkdir(exist_ok=True)
+                    output_dir = "test_outputs"
+                    os.makedirs(output_dir, exist_ok=True)
                     
                     timestamp = int(time.time())
                     filename = f"generated_{timestamp}.png"
-                    filepath = output_dir / filename
+                    filepath = os.path.join(output_dir, filename)
                     
                     # base64 디코딩 및 저장
                     image_data = base64.b64decode(data['image_base64'])

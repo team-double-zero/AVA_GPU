@@ -20,27 +20,15 @@ vast.ai GPU 서버에서 Qwen 이미지 생성 모델을 활용한 Flask API 서
 
 ## 🛠️ 설치 및 실행
 
-### vast.ai 환경에서 최초 설정
+### vast.ai 환경에서 실행 (권장)
 
-1. **vast.ai 서버 초기 설정**
 ```bash
 # 프로젝트 클론
 git clone <repository-url>
-cd AVA_GPU
+cd qwen_project
 
-# Docker 데몬 시작 (vast.ai는 systemd 없음)
-./start_docker.sh
-
-# 또는 수동 시작
-sudo dockerd &
-
-# Docker 데몬 준비 확인
-docker ps
-```
-
-2. **프로젝트 실행**
-```bash
-./start.sh
+# Docker 실행 (vast.ai에는 Docker가 이미 설치됨)
+./scripts/run_docker.sh
 ```
 
 ### Docker Compose 사용 (권장)
@@ -175,16 +163,19 @@ curl -X GET http://localhost:5000/images/generated_abc12345.png --output image.p
 
 **해결방법 (vast.ai 환경)**:
 ```bash
-# 1. Docker 데몬 시작 (vast.ai는 systemd 미지원)
+# 1. Docker 데몬 시작 (특별 설정 포함)
 ./start_docker.sh
 
-# 2. 또는 수동으로 Docker 데몬 시작
-sudo dockerd &
+# 2. 또는 수동으로 Docker 데몬 시작 (Docker-in-Docker용)
+sudo dockerd --storage-driver=vfs --iptables=false --bridge=none &
 
 # 3. Docker 데몬 상태 확인
 docker ps
 
-# 4. 사용자 권한 설정 (필요시)
+# 4. Docker 문제 지속 시 직접 실행
+./run_direct.sh
+
+# 5. 사용자 권한 설정 (필요시)
 sudo usermod -aG docker $USER
 newgrp docker
 ```
@@ -232,15 +223,24 @@ ls -la /usr/local/bin/docker-compose
 ## 📁 프로젝트 구조
 
 ```
-AVA_GPU/
-├── app.py                 # Flask API 서버
-├── image_generator.py     # Qwen 이미지 생성 클래스
-├── requirements.txt       # Python 의존성
-├── Dockerfile            # Docker 이미지 빌드 설정
-├── docker-compose.yml    # Docker Compose 설정
-├── .dockerignore         # Docker 빌드 제외 파일
-├── README.md             # 프로젝트 문서
-└── generated_images/     # 생성된 이미지 저장 폴더
+qwen_project/             # 프로젝트 최상위 폴더
+├── app/                  # 🐍 모든 파이썬 소스 코드
+│   ├── __init__.py
+│   ├── main.py           # Flask 애플리케이션 진입점
+│   ├── api/              # API 엔드포인트 관련 코드
+│   │   ├── __init__.py
+│   │   └── routes.py     # '/generate' 등 라우트 정의
+│   └── core/             # 핵심 비즈니스 로직
+│       ├── __init__.py
+│       ├── config.py     # 설정 관리
+│       └── model.py      # 모델 로딩 및 이미지 생성 로직
+├── scripts/              # 📜 자동화 스크립트
+│   └── run_docker.sh     # Docker 빌드 및 실행 스크립트
+├── docker-compose.yml    # Docker 컨테이너 설정
+├── Dockerfile           # Docker 이미지 빌드 설정
+├── requirements.txt     # Python 의존성 라이브러리
+├── .dockerignore        # Docker 빌드 제외 파일
+└── README.md            # 프로젝트 문서
 ```
 
 ## 🔧 고급 설정

@@ -1,37 +1,33 @@
-from flask import Flask, request, jsonify, send_file
+"""
+API Routes for Qwen Image Generator
+"""
+from flask import Blueprint, request, jsonify, send_file
 from werkzeug.exceptions import BadRequest
 import logging
 import os
-import threading
-import time
-from datetime import datetime
-from image_generator import QwenImageGenerator
 import uuid
+from datetime import datetime
+from ..core.model import QwenImageGenerator
+from ..core.config import Config
 
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger(__name__)
 
-# Flask 앱 초기화
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB 최대 요청 크기
+# Create Blueprint
+api_bp = Blueprint('api', __name__)
 
-# 글로벌 변수
+# Global variables
 image_generator = None
 model_loading = False
 
-def initialize_model():
-    """백그라운드에서 모델을 초기화합니다"""
+def init_model(config: Config):
+    """Initialize the image generator model"""
     global image_generator, model_loading
     
     try:
         model_loading = True
         logger.info("모델 초기화 시작...")
         
-        image_generator = QwenImageGenerator()
+        image_generator = QwenImageGenerator(config)
         image_generator.load_model()
         
         model_loading = False
@@ -40,8 +36,9 @@ def initialize_model():
     except Exception as e:
         model_loading = False
         logger.error(f"모델 초기화 실패: {str(e)}")
+        raise
 
-@app.route('/health', methods=['GET'])
+@api_bp.route('/health', methods=['GET'])
 def health_check():
     """헬스 체크 엔드포인트"""
     global image_generator, model_loading
@@ -67,12 +64,12 @@ def health_check():
         "timestamp": datetime.now().isoformat()
     }), 200
 
-@app.route('/generate', methods=['POST'])
+@api_bp.route('/generate', methods=['POST'])
 def generate_image():
     """이미지 생성 엔드포인트"""
     global image_generator
     
-    # 모델 로딩 상태 확인
+    # Check model loading status
     if model_loading:
         return jsonify({
             "success": False,
@@ -88,13 +85,13 @@ def generate_image():
         }), 503
     
     try:
-        # 요청 데이터 파싱
+        # Parse request data
         if not request.is_json:
             raise BadRequest("JSON 형식의 데이터가 필요합니다")
         
         data = request.get_json()
         
-        # 필수 파라미터 검증
+        # Validate required parameters
         prompt = data.get('prompt')
         if not prompt or not prompt.strip():
             return jsonify({
@@ -102,37 +99,42 @@ def generate_image():
                 "error": "프롬프트가 필요합니다"
             }), 400
         
-        # 선택적 파라미터
-        negative_prompt = data.get('negative_prompt', None)
-        width = data.get('width', 1024)
-        height = data.get('height', 1024)
-        num_inference_steps = data.get('num_inference_steps', 20)
-        guidance_scale = data.get('guidance_scale', 7.5)
-        seed = data.get('seed', None)
+        # Extract optional parameters
+        negative_prompt = data.get('negative_prompt')
+        width = data.get('width')
+        height = data.get('height')
+        num_inference_steps = data.get('num_inference_steps')
+        guidance_scale = data.get('guidance_scale')
+        seed = data.get('seed')
         save_image = data.get('save_image', False)
         
-        # 파라미터 검증
-        if not isinstance(width, int) or width < 64 or width > 2048:
-            return jsonify({
-                "success": False,
-                "error": "width는 64-2048 사이의 정수여야 합니다"
-            }), 400
+        # Validate parameters
+        config = image_generator.config
         
-        if not isinstance(height, int) or height < 64 or height > 2048:
-            return jsonify({
-                "success": False,
-                "error": "height는 64-2048 사이의 정수여야 합니다"
-            }), 400
+        if width is not None:
+            if not isinstance(width, int) or width < config.MIN_DIMENSION or width > config.MAX_WIDTH:
+                return jsonify({
+                    "success": False,
+                    "error": f"width는 {config.MIN_DIMENSION}-{config.MAX_WIDTH} 사이의 정수여야 합니다"
+                }), 400
         
-        if not isinstance(num_inference_steps, int) or num_inference_steps < 1 or num_inference_steps > 100:
-            return jsonify({
-                "success": False,
-                "error": "num_inference_steps는 1-100 사이의 정수여야 합니다"
-            }), 400
+        if height is not None:
+            if not isinstance(height, int) or height < config.MIN_DIMENSION or height > config.MAX_HEIGHT:
+                return jsonify({
+                    "success": False,
+                    "error": f"height는 {config.MIN_DIMENSION}-{config.MAX_HEIGHT} 사이의 정수여야 합니다"
+                }), 400
+        
+        if num_inference_steps is not None:
+            if not isinstance(num_inference_steps, int) or num_inference_steps < 1 or num_inference_steps > config.MAX_STEPS:
+                return jsonify({
+                    "success": False,
+                    "error": f"num_inference_steps는 1-{config.MAX_STEPS} 사이의 정수여야 합니다"
+                }), 400
         
         logger.info(f"이미지 생성 요청: {prompt[:100]}...")
         
-        # 이미지 생성
+        # Generate image
         result = image_generator.generate_image(
             prompt=prompt,
             negative_prompt=negative_prompt,
@@ -152,18 +154,20 @@ def generate_image():
             "negative_prompt": result["negative_prompt"],
             "width": result["width"],
             "height": result["height"],
+            "num_inference_steps": result["num_inference_steps"],
+            "guidance_scale": result["guidance_scale"],
             "seed": result["seed"],
             "timestamp": datetime.now().isoformat()
         }
         
-        # 이미지 저장 옵션
+        # Save image option
         if save_image:
             filename = f"generated_{uuid.uuid4().hex[:8]}.png"
             filepath = image_generator.save_image(result["image_base64"], filename)
             response_data["saved_path"] = filepath
             response_data["filename"] = filename
         
-        # base64 이미지 포함
+        # Include base64 image
         response_data["image_base64"] = result["image_base64"]
         
         logger.info("이미지 생성 요청 완료")
@@ -181,7 +185,7 @@ def generate_image():
             "error": "내부 서버 오류가 발생했습니다"
         }), 500
 
-@app.route('/model-info', methods=['GET'])
+@api_bp.route('/model-info', methods=['GET'])
 def get_model_info():
     """모델 정보 조회 엔드포인트"""
     global image_generator
@@ -206,11 +210,18 @@ def get_model_info():
             "error": "모델 정보를 가져올 수 없습니다"
         }), 500
 
-@app.route('/images/<filename>', methods=['GET'])
+@api_bp.route('/images/<filename>', methods=['GET'])
 def get_saved_image(filename):
     """저장된 이미지 파일 제공 엔드포인트"""
     try:
-        image_path = os.path.join("generated_images", filename)
+        # Get config from the global image_generator
+        if image_generator is None:
+            return jsonify({
+                "success": False,
+                "error": "서비스가 초기화되지 않았습니다"
+            }), 503
+        
+        image_path = os.path.join(image_generator.config.OUTPUT_DIR, filename)
         if not os.path.exists(image_path):
             return jsonify({
                 "success": False,
@@ -225,7 +236,7 @@ def get_saved_image(filename):
             "error": "이미지 파일을 제공할 수 없습니다"
         }), 500
 
-@app.errorhandler(413)
+@api_bp.errorhandler(413)
 def request_entity_too_large(error):
     """파일 크기 초과 오류 핸들러"""
     return jsonify({
@@ -233,28 +244,10 @@ def request_entity_too_large(error):
         "error": "요청 크기가 너무 큽니다 (최대 16MB)"
     }), 413
 
-@app.errorhandler(500)
+@api_bp.errorhandler(500)
 def internal_server_error(error):
     """내부 서버 오류 핸들러"""
     return jsonify({
         "success": False,
         "error": "내부 서버 오류가 발생했습니다"
     }), 500
-
-if __name__ == '__main__':
-    # 출력 디렉토리 생성
-    os.makedirs("generated_images", exist_ok=True)
-    
-    # 백그라운드에서 모델 로드 시작
-    model_thread = threading.Thread(target=initialize_model)
-    model_thread.daemon = True
-    model_thread.start()
-    
-    # Flask 앱 실행
-    logger.info("Flask 서버 시작...")
-    app.run(
-        host='0.0.0.0',
-        port=int(os.environ.get('PORT', 5000)),
-        debug=False,
-        threaded=True
-    )
